@@ -24,3 +24,15 @@ func CreateSite(url string, db *sqlx.DB) error {
 	}
 	return nil
 }
+
+// FindByURL - find a website in the database by it's URL
+func (w *Website) FindByURL(url string, db *sqlx.DB) error {
+	var tempSite Website
+	err := db.Get(&tempSite, "SELECT * FROM websites WHERE url = ?", url)
+	if err != nil {
+		return err
+	}
+
+	*w = tempSite
+	return nil
+}

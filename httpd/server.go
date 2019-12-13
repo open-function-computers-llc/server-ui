@@ -1,10 +1,12 @@
 package main
 
 import (
+	"net/http"
 	"os"
 
 	_ "github.com/go-sql-driver/mysql" // db connections via mysql/mariaDB
 	"github.com/jmoiron/sqlx"
+	"github.com/julienschmidt/httprouter"
 	_ "github.com/mattn/go-sqlite3" // db connections via sqlite
 	"github.com/open-function-computers-llc/server-ui/db"
 	"github.com/open-function-computers-llc/server-ui/models"
@@ -14,9 +16,10 @@ import (
 type server struct {
 	db     *sqlx.DB
 	logger *logrus.Logger
+	router *httprouter.Router
 }
 
-func (s *server) start() error {
+func (s *server) bootstrap() error {
 	// attach logger
 	if s.logger == nil {
 		s.logger = logrus.New()
@@ -32,8 +35,22 @@ func (s *server) start() error {
 	}
 
 	// attach routes
+	s.router = httprouter.New()
+	s.bindRoutes()
+
+	return nil
+}
+
+func (s *server) start() error {
+	if s.logger == nil {
+		err := s.bootstrap()
+		if err != nil {
+			return err
+		}
+	}
 
 	// listen and serve
+	http.ListenAndServe(":"+os.Getenv("APP_PORT"), s.router)
 
 	return nil
 }
