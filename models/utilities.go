@@ -7,12 +7,14 @@ import (
 
 // GetSchemas - return all the SQL commands needed to migrate a database
 func GetSchemas(driver string) string {
+	return getModelSchemas(driver, Website{})
+}
+
+func getModelSchemas(driver string, models ...model) string {
 	var output string
-
-	// do this for each model
-	w := Website{}
-	output = output + w.GetSchema(driver)
-
+	for _, m := range models {
+		output = output + m.GetSchema(driver)
+	}
 	return output
 }
 
