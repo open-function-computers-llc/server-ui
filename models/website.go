@@ -8,6 +8,8 @@ type Website struct {
 	URL string `db:"url"`
 }
 
+// GetSchema - return the SQL statement that describes this model's shape
+// TODO: return different strings for different SQL drivers (sqlite3/mysql)
 func (w Website) GetSchema(driver string) string {
 	return `CREATE TABLE IF NOT EXISTS websites (
 		id INTEGER PRIMARY KEY,
