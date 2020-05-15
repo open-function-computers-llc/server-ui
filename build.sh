@@ -17,7 +17,8 @@ export DB_HOST=localhost
 export DB_PORT=3306
 export DB_USER=dbuser
 export DB_PASSWORD=dbpass
-export APP_PORT=9090
+export APP_PORT=9099
+export ROUTE_PREFIX=tlioqwtisjdiauegliavaw4gjh
 
 cd ../dist
 killall ofco-web-ui || true

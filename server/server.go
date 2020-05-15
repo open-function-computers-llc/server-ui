@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"net/http"
@@ -13,13 +13,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type server struct {
+// Server this is a web server
+type Server struct {
 	db     *sqlx.DB
 	logger *logrus.Logger
 	router *httprouter.Router
 }
 
-func (s *server) bootstrap() error {
+func (s *Server) bootstrap() error {
 	// attach logger
 	if s.logger == nil {
 		s.logger = logrus.New()
@@ -41,7 +42,8 @@ func (s *server) bootstrap() error {
 	return nil
 }
 
-func (s *server) start() error {
+// Start will start up the server instance and bootstrap it if necessary
+func (s *Server) Start() error {
 	if s.logger == nil {
 		err := s.bootstrap()
 		if err != nil {
@@ -50,12 +52,13 @@ func (s *server) start() error {
 	}
 
 	// listen and serve
+	s.Log("Started server on port " + os.Getenv("APP_PORT"))
 	http.ListenAndServe(":"+os.Getenv("APP_PORT"), s.router)
 
 	return nil
 }
 
-func (s *server) connectToDB() error {
+func (s *Server) connectToDB() error {
 	dbType := os.Getenv("DB_TYPE")
 
 	// default to sqlite
@@ -66,7 +69,7 @@ func (s *server) connectToDB() error {
 	return s.setUpMariaDB()
 }
 
-func (s *server) setUpSQLite() error {
+func (s *Server) setUpSQLite() error {
 	s.Log("connection set to SQLite")
 	dbName := os.Getenv("DB_DATABASE")
 	if dbName == "" {
@@ -81,7 +84,7 @@ func (s *server) setUpSQLite() error {
 	return nil
 }
 
-func (s *server) setUpMariaDB() error {
+func (s *Server) setUpMariaDB() error {
 	s.Log("connection set to MariaDB")
 	dsn, err := db.GenerateMariaDSN(
 		os.Getenv("DB_USER"),
@@ -106,7 +109,7 @@ func (s *server) setUpMariaDB() error {
 	return nil
 }
 
-func (s *server) migrateDB() {
+func (s *Server) migrateDB() {
 	s.Log("Migrating Database")
 	if s.db.DriverName() != "sqlite3" {
 		return
@@ -116,6 +119,12 @@ func (s *server) migrateDB() {
 	s.Log("DB Migrated")
 }
 
-func (s *server) Log(messages ...string) {
+// Log will log any messages to the attached logger instance
+func (s *Server) Log(messages ...string) {
 	s.logger.Info(messages)
+}
+
+// LogError will log any messages to the attached logger instance
+func (s *Server) LogError(messages ...string) {
+	s.logger.Error(messages)
 }

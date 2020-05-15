@@ -1,12 +1,12 @@
-package main
+package server
 
 import (
 	"os"
 )
 
-func createDummyServer() server {
+func createDummyServer() Server {
 	os.Setenv("DB_TYPE", "sqlite")
-	s := server{}
+	s := Server{}
 	s.bootstrap()
 
 	return s
