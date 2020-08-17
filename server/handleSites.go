@@ -6,8 +6,8 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-func (s *Server) handleIndex() httprouter.Handle {
+func (s *Server) handleSites() httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
-		s.renderView("dashboard", w, nil)
+		s.renderView("sites", w, nil)
 	}
 }

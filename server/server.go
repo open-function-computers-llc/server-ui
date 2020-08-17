@@ -4,7 +4,10 @@ import (
 	"net/http"
 	"os"
 
+	rice "github.com/GeertJohan/go.rice"
+	"github.com/dchest/uniuri"
 	_ "github.com/go-sql-driver/mysql" // db connections via mysql/mariaDB
+	"github.com/gorilla/sessions"
 	"github.com/jmoiron/sqlx"
 	"github.com/julienschmidt/httprouter"
 	_ "github.com/mattn/go-sqlite3" // db connections via sqlite
@@ -15,9 +18,12 @@ import (
 
 // Server this is a web server
 type Server struct {
-	db     *sqlx.DB
-	logger *logrus.Logger
-	router *httprouter.Router
+	db          *sqlx.DB              // DB connection
+	logger      *logrus.Logger        // logger
+	router      *httprouter.Router    // router for all routes
+	routePrefix string                // used to obfuscate routes
+	assets      *rice.Box             // rice box for static assets
+	sessions    *sessions.CookieStore //valid user sessions
 }
 
 func (s *Server) bootstrap() error {
@@ -34,6 +40,21 @@ func (s *Server) bootstrap() error {
 			return err
 		}
 	}
+
+	// set the route prefix
+	prefix := os.Getenv("ROUTE_PREFIX")
+	if prefix == "" {
+		prefix = uniuri.New()
+	}
+	s.routePrefix = "/" + prefix
+	s.Log("Route prefix: ", s.routePrefix)
+
+	// load in static assets
+	s.assets = rice.MustFindBox("../resources/views")
+	s.Log("rice box assets loaded")
+
+	// set up encrypted cookies for sessions
+	s.sessions = sessions.NewCookieStore([]byte(uniuri.NewLen(64)))
 
 	// attach routes
 	s.router = httprouter.New()
@@ -120,8 +141,8 @@ func (s *Server) migrateDB() {
 }
 
 // Log will log any messages to the attached logger instance
-func (s *Server) Log(messages ...string) {
-	s.logger.Info(messages)
+func (s *Server) Log(messages ...interface{}) {
+	s.logger.Info(messages...)
 }
 
 // LogError will log any messages to the attached logger instance
