@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"os"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -14,14 +15,21 @@ func (s *Server) handleLogin() httprouter.Handle {
 			return
 		}
 
-		s.Log(r.Form.Get("username"))
-		s.Log(r.Form.Get("password"))
-		if r.Form.Get("username") != "admin" || r.Form.Get("password") != "password" {
+		if r.Form.Get("username") != os.Getenv("APP_USERNAME") || r.Form.Get("password") != os.Getenv("APP_PASSWORD") {
 			s.Log("bad creds!")
 			http.Redirect(w, r, s.routePrefix+"/login", 302)
 			return
 		}
-		s.Log("time to log in!")
+		session, _ := s.sessions.Get(r, "ofco-server-session")
+		session.Values["authenticated"] = true
+
+		err = session.Save(r, w)
+		if err != nil {
+			s.LogError(err.Error())
+			return
+		}
+
+		http.Redirect(w, r, s.routePrefix+"/", 302)
 	}
 }
 

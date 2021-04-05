@@ -8,24 +8,19 @@ import (
 
 func (s *Server) checkSession(next httprouter.Handle) httprouter.Handle {
 	return func(w http.ResponseWriter, r *http.Request, rp httprouter.Params) {
-		session, err := s.sessions.Get(r, "admin-users")
+		session, err := s.sessions.Get(r, "ofco-server-session")
 		if err != nil {
 			// TODO: set up better error handling
 			s.Log("ERROR WITH SESSION")
 			return
 		}
 
-		user := ""
-		sessionVal := session.Values["user"]
-		if u, ok := sessionVal.(string); ok {
-			user = u
-		} else {
-			s.Log("ERROR WITH SESSION VALUE - 'user'")
+		sessionVal := session.Values["authenticated"]
+		if authenticated, ok := sessionVal.(bool); !ok || !authenticated {
+			s.Log("ERROR WITH SESSION VALUE - 'authenticated'", authenticated, sessionVal)
 			http.Redirect(w, r, s.routePrefix+"/login", 302)
 			return
 		}
-		s.Log(user)
-		s.Log("hit the middleware")
 
 		next(w, r, rp)
 	}

@@ -1,8 +1,10 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 	"os"
+	"strconv"
 
 	rice "github.com/GeertJohan/go.rice"
 	"github.com/dchest/uniuri"
@@ -13,20 +15,31 @@ import (
 	_ "github.com/mattn/go-sqlite3" // db connections via sqlite
 	"github.com/open-function-computers-llc/server-ui/db"
 	"github.com/open-function-computers-llc/server-ui/models"
+	"github.com/open-function-computers-llc/server-ui/site"
 	"github.com/sirupsen/logrus"
 )
 
 // Server this is a web server
 type Server struct {
-	db          *sqlx.DB              // DB connection
-	logger      *logrus.Logger        // logger
-	router      *httprouter.Router    // router for all routes
-	routePrefix string                // used to obfuscate routes
-	assets      *rice.Box             // rice box for static assets
-	sessions    *sessions.CookieStore //valid user sessions
+	db           *sqlx.DB              // DB connection
+	logger       *logrus.Logger        // logger
+	router       *httprouter.Router    // router for all routes
+	routePrefix  string                // used to obfuscate routes
+	assets       *rice.Box             // rice box for static assets
+	publicAssets *rice.Box             // rice box for public assets
+	sessions     *sessions.CookieStore //valid user sessions
+	sites        []site.Site           // the websites on this server
+	hostType     string                // what type of sites are intended to be ran on this server (modx|wordpress)
 }
 
 func (s *Server) bootstrap() error {
+	// verify host type
+	s.hostType = os.Getenv("APP_HOST_TYPE")
+	err := verifyHostType(s.hostType)
+	if err != nil {
+		return errors.New("Invalid host type. Check your env var for APP_HOST_TYPE")
+	}
+
 	// attach logger
 	if s.logger == nil {
 		s.logger = logrus.New()
@@ -42,7 +55,7 @@ func (s *Server) bootstrap() error {
 	}
 
 	// set the route prefix
-	prefix := os.Getenv("ROUTE_PREFIX")
+	prefix := os.Getenv("APP_ROUTE_PREFIX")
 	if prefix == "" {
 		prefix = uniuri.New()
 	}
@@ -51,14 +64,44 @@ func (s *Server) bootstrap() error {
 
 	// load in static assets
 	s.assets = rice.MustFindBox("../resources/views")
-	s.Log("rice box assets loaded")
+	s.Log("rice box template assets loaded")
+
+	// load in public assets
+	s.publicAssets = rice.MustFindBox("../public")
+	s.Log("rice box public assets loaded")
 
 	// set up encrypted cookies for sessions
-	s.sessions = sessions.NewCookieStore([]byte(uniuri.NewLen(64)))
+	encLen, err := strconv.Atoi(os.Getenv("SESSION_LENGTH"))
+	if err != nil {
+		return errors.New("Invalid session length. Check your env var for SESSION_LENGTH.")
+	}
+	if encLen < 1 {
+		return errors.New("Invalid session length. Check your env var for SESSION_LENGTH.")
+	}
+	encKey := os.Getenv("SESSION_ENC_KEY")
+	if encKey == "" {
+		encKey = uniuri.New()
+	}
+	s.sessions = sessions.NewCookieStore([]byte(encKey))
+	s.sessions.Options = &sessions.Options{
+		MaxAge: 60 * encLen, // 30 minute sessions
+	}
 
-	// attach routes
+	// set up routes
 	s.router = httprouter.New()
+
+	// bind http handler routes
 	s.bindRoutes()
+
+	// add in static assets that are cool to serve to anyone
+	assetServer := http.FileServer(s.publicAssets.HTTPBox())
+	s.router.NotFound = assetServer
+
+	// populate the sites for this webserver
+	err = s.loadSites()
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -148,4 +191,11 @@ func (s *Server) Log(messages ...interface{}) {
 // LogError will log any messages to the attached logger instance
 func (s *Server) LogError(messages ...string) {
 	s.logger.Error(messages)
+}
+
+// NewServer - create and bootstrap a new server struct
+func NewServer() (Server, error) {
+	s := Server{}
+	err := s.bootstrap()
+	return s, err
 }

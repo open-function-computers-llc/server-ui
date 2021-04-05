@@ -9,17 +9,6 @@ echo "Building linux binary..."
 go build -o ../dist/ofco-web-ui
 echo "done!"
 
-
-export DB_TYPE=sqlite
-export DB_DATABASE=test
-
-export DB_HOST=localhost
-export DB_PORT=3306
-export DB_USER=dbuser
-export DB_PASSWORD=dbpass
-export APP_PORT=9099
-export ROUTE_PREFIX=tlioqwtisjdiauegliavaw4gjh
-
-cd ../dist
+cd ../
 killall ofco-web-ui || true
-./ofco-web-ui &
+dist/ofco-web-ui &

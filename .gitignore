@@ -1,1 +1,3 @@
-dist
+dist/ofco-web-ui
+test
+.env
